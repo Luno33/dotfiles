@@ -21,7 +21,7 @@ link() {
         mv "$dest" "$dest.backup"
     fi
 
-    ln -sf "$src" "$dest"
+    ln -sfn "$src" "$dest"
     echo "Linked $dest -> $src"
 }
 
@@ -67,6 +67,11 @@ for i in "${!planned_dest[@]}"; do
         echo "  $dest -> $src"
     fi
 done
+if [[ ! -e "$HOME/.gitignore_global" ]]; then
+    echo "  $HOME/.gitignore_global <- $DOTFILES/git/gitignore_global (copy)"
+else
+    echo "  $HOME/.gitignore_global (exists, keeping)"
+fi
 echo ""
 
 # Ask for confirmation (unless -y flag)
@@ -79,10 +84,20 @@ if [[ "$skip_confirm" == false ]]; then
     echo ""
 fi
 
-# Execute
+# Execute links
 for i in "${!planned_dest[@]}"; do
     link "${planned_src[$i]}" "${planned_dest[$i]}"
 done
+
+# Copy gitignore_global (only if doesn't exist, to preserve user's patterns)
+if [[ ! -e "$HOME/.gitignore_global" ]]; then
+    cp "$DOTFILES/git/gitignore_global" "$HOME/.gitignore_global"
+    echo "Copied $HOME/.gitignore_global"
+fi
+
+# Configure git to use global gitignore
+git config --global core.excludesfile "$HOME/.gitignore_global"
+echo "Configured git global excludesfile"
 
 echo ""
 echo "Done! Restart your shell or run: source ~/.${current_shell}rc"

@@ -26,9 +26,11 @@ dotfiles/
 ├── bash/           # Bash-specific config
 │   ├── bashrc
 │   └── bash_profile
-└── zsh/            # Zsh-specific config
-    ├── zshrc
-    └── zprofile
+├── zsh/            # Zsh-specific config
+│   ├── zshrc
+│   └── zprofile
+└── git/            # Git config
+    └── gitignore_global
 ```
 
 ## Customizing

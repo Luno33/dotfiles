@@ -36,16 +36,23 @@ claude() {
         user_flags="--userns=keep-id --user $(id -u):$(id -g)"
     fi
 
+    # Mount global gitignore if it exists
+    local gitignore_mount=""
+    if [[ -f "$HOME/.gitignore_global" ]]; then
+        gitignore_mount="-v $HOME/.gitignore_global:/home/node/.gitignore_global:ro"
+    fi
+
     # Run container
     $runtime run --rm -it \
         --name "$container_name" \
         --cap-add=NET_ADMIN \
         --cap-add=NET_RAW \
         $user_flags \
+        $gitignore_mount \
         -v "$HOME/.claude-code/.claude":/home/node/.claude \
         -v "$HOME/.claude-code/.claude.json":/home/node/.claude.json \
         -v "$PWD":/workspace -w /workspace \
-        "$image" /bin/bash -c "sudo /usr/local/bin/init-firewall.sh && exec claude"
+        "$image" /bin/bash -c "[ -f ~/.gitignore_global ] && git config --global core.excludesfile ~/.gitignore_global; sudo /usr/local/bin/init-firewall.sh && exec claude"
 }
 
 # Add your functions below
