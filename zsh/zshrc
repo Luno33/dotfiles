@@ -1,0 +1,8 @@
+# Zsh configuration
+
+# Source shared config
+for file in ~/.shell/*.sh; do
+    [ -r "$file" ] && source "$file"
+done
+
+# Zsh-specific settings below

@@ -1,0 +1,4 @@
+# Zsh login shell config
+
+# Source zshrc
+[ -f ~/.zshrc ] && source ~/.zshrc

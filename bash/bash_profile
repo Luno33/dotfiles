@@ -1,0 +1,4 @@
+# Bash login shell config
+
+# Source bashrc
+[ -f ~/.bashrc ] && source ~/.bashrc

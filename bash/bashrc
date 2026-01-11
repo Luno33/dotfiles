@@ -1,0 +1,8 @@
+# Bash configuration
+
+# Source shared config
+for file in ~/.shell/*.sh; do
+    [ -r "$file" ] && source "$file"
+done
+
+# Bash-specific settings below
