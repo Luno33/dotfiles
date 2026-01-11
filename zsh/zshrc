@@ -1,5 +1,12 @@
 # Zsh configuration
 
+# Colored prompt
+PS1='%F{green}%n@%m%f:%F{blue}%~%f%# '
+
+# Enable colors for ls/grep
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+
 # Source shared config
 for file in ~/.shell/*.sh; do
     [ -r "$file" ] && source "$file"
