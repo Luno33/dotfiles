@@ -1,12 +1,21 @@
 #!/bin/bash
 DOTFILES="$HOME/.dotfiles"
 
+# Parse flags
+install_all=false
+skip_confirm=false
+for arg in "$@"; do
+    case "$arg" in
+        --all) install_all=true ;;
+        -y|--yes) skip_confirm=true ;;
+    esac
+done
+
 # Helper: create symlink with backup
 link() {
     local src="$1"
     local dest="$2"
 
-    # Backup existing file if it's not already a symlink
     if [[ -e "$dest" && ! -L "$dest" ]]; then
         echo "Backing up $dest to $dest.backup"
         mv "$dest" "$dest.backup"
@@ -16,37 +25,64 @@ link() {
     echo "Linked $dest -> $src"
 }
 
-# Detect current shell (bash or zsh)
+# Detect current shell and platform
 current_shell=$(basename "$SHELL")
-
-# Detect platform (Linux or Darwin/macOS)
 platform=$(uname -s)
 
 echo "Detected shell: $current_shell"
 echo "Detected platform: $platform"
 echo ""
 
-# --all flag: install everything regardless of detection
-install_all=false
-if [[ "$1" == "--all" ]]; then
-    install_all=true
-    echo "Installing all configs (--all flag)"
-    echo ""
-fi
+# Build list of planned links
+planned_src=()
+planned_dest=()
+
+plan_link() {
+    planned_src+=("$1")
+    planned_dest+=("$2")
+}
 
 # Always install shared shell config
-link "$DOTFILES/shell" "$HOME/.shell"
+plan_link "$DOTFILES/shell" "$HOME/.shell"
 
 # Install shell-specific config based on detection (or all if --all)
 if [[ "$install_all" == true || "$current_shell" == "bash" ]]; then
-    link "$DOTFILES/bash/bashrc" "$HOME/.bashrc"
-    link "$DOTFILES/bash/bash_profile" "$HOME/.bash_profile"
+    plan_link "$DOTFILES/bash/bashrc" "$HOME/.bashrc"
+    plan_link "$DOTFILES/bash/bash_profile" "$HOME/.bash_profile"
 fi
 
 if [[ "$install_all" == true || "$current_shell" == "zsh" ]]; then
-    link "$DOTFILES/zsh/zshrc" "$HOME/.zshrc"
-    link "$DOTFILES/zsh/zprofile" "$HOME/.zprofile"
+    plan_link "$DOTFILES/zsh/zshrc" "$HOME/.zshrc"
+    plan_link "$DOTFILES/zsh/zprofile" "$HOME/.zprofile"
 fi
+
+# Show preview
+echo "The following changes will be made:"
+for i in "${!planned_dest[@]}"; do
+    dest="${planned_dest[$i]}"
+    src="${planned_src[$i]}"
+    if [[ -e "$dest" && ! -L "$dest" ]]; then
+        echo "  $dest -> $src (backup: $dest.backup)"
+    else
+        echo "  $dest -> $src"
+    fi
+done
+echo ""
+
+# Ask for confirmation (unless -y flag)
+if [[ "$skip_confirm" == false ]]; then
+    read -p "Proceed? [y/N] " answer
+    if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+        echo "Aborted."
+        exit 0
+    fi
+    echo ""
+fi
+
+# Execute
+for i in "${!planned_dest[@]}"; do
+    link "${planned_src[$i]}" "${planned_dest[$i]}"
+done
 
 echo ""
 echo "Done! Restart your shell or run: source ~/.${current_shell}rc"

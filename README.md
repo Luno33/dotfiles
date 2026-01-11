@@ -9,8 +9,11 @@ git clone https://github.com/Luno33/dotfiles.git ~/.dotfiles
 ~/.dotfiles/install.sh
 ```
 
-The install script auto-detects your shell and only installs relevant config.
-Use `--all` to install everything: `~/.dotfiles/install.sh --all`
+The install script auto-detects your shell, shows a preview of changes, and asks for confirmation.
+
+Flags:
+- `--all` - Install config for all shells (not just the detected one)
+- `-y` - Skip confirmation prompt
 
 ## Structure
 
