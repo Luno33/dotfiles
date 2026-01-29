@@ -51,7 +51,7 @@ claude() {
         $gitignore_mount \
         -v "$HOME/.claude-code/.claude":/home/node/.claude \
         -v "$HOME/.claude-code/.claude.json":/home/node/.claude.json \
-        -v "$PWD":/workspace -w /workspace \
+        -v "$PWD":"$PWD" -w "$PWD" \
         "$image" /bin/bash -c "[ -f ~/.gitignore_global ] && git config --global core.excludesfile ~/.gitignore_global; sudo /usr/local/bin/init-firewall.sh && exec claude"
 }
 
