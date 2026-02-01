@@ -30,28 +30,33 @@ claude() {
     local dir_name=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]-')
     local container_name="claude-code-${dir_name}"
 
-    # Runtime-specific flags
-    local user_flags=""
+    # Build run arguments array (avoids word-splitting issues on macOS)
+    local run_args=(
+        --rm -it
+        --name "$container_name"
+        --cap-add=NET_ADMIN
+        --cap-add=NET_RAW
+    )
+
+    # Runtime-specific flags (podman only)
     if [[ "$runtime" == "podman" ]]; then
-        user_flags="--userns=keep-id --user $(id -u):$(id -g)"
+        run_args+=(--userns=keep-id --user "$(id -u):$(id -g)")
     fi
 
     # Mount global gitignore if it exists
-    local gitignore_mount=""
     if [[ -f "$HOME/.gitignore_global" ]]; then
-        gitignore_mount="-v $HOME/.gitignore_global:/home/node/.gitignore_global:ro"
+        run_args+=(-v "$HOME/.gitignore_global:/home/node/.gitignore_global:ro")
     fi
 
+    # Add remaining volume mounts
+    run_args+=(
+        -v "$HOME/.claude-code/.claude:/home/node/.claude"
+        -v "$HOME/.claude-code/.claude.json:/home/node/.claude.json"
+        -v "$PWD:$PWD" -w "$PWD"
+    )
+
     # Run container
-    $runtime run --rm -it \
-        --name "$container_name" \
-        --cap-add=NET_ADMIN \
-        --cap-add=NET_RAW \
-        $user_flags \
-        $gitignore_mount \
-        -v "$HOME/.claude-code/.claude":/home/node/.claude \
-        -v "$HOME/.claude-code/.claude.json":/home/node/.claude.json \
-        -v "$PWD":"$PWD" -w "$PWD" \
+    $runtime run "${run_args[@]}" \
         "$image" /bin/bash -c "[ -f ~/.gitignore_global ] && git config --global core.excludesfile ~/.gitignore_global; sudo /usr/local/bin/init-firewall.sh && exec claude"
 }
 
