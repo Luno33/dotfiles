@@ -13,3 +13,11 @@ for file in ~/.shell/*.sh; do
 done
 
 # Zsh-specific settings below
+
+# For Apple Silicon macbooks
+fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+autoload -Uz compinit && compinit
+
+### MANAGED BY RANCHER DESKTOP START (DO NOT EDIT)
+export PATH="$HOME/.rd/bin:$PATH"
+### MANAGED BY RANCHER DESKTOP END (DO NOT EDIT)
