@@ -4,6 +4,8 @@
 # Usage: claude [--image IMAGE_NAME]
 # Override default image: export CLAUDE_IMAGE="ghcr.io/luno33/claude-code:latest"
 claude() {
+    local no_firewall=false
+
     # Detect container runtime (prefer podman)
     local runtime
     if command -v podman &>/dev/null; then
@@ -26,38 +28,61 @@ claude() {
         shift 2
     fi
 
-    # Dynamic container name from current directory
+    # Dynamic container name from current directory + TTY for uniqueness
     local dir_name=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]-')
-    local container_name="claude-code-${dir_name}"
+    local tty_id=$(tty | grep -o '[0-9]*$')
+    local container_name="claude-code-${dir_name}-pts${tty_id}"
 
-    # Build run arguments array (avoids word-splitting issues on macOS)
-    local run_args=(
-        --rm -it
-        --name "$container_name"
-        --cap-add=NET_ADMIN
-        --cap-add=NET_RAW
-    )
-
-    # Runtime-specific flags (podman only)
+    local user_flags=""
     if [[ "$runtime" == "podman" ]]; then
-        run_args+=(--userns=keep-id --user "$(id -u):$(id -g)")
+        user_flags="--userns=keep-id --user $(id -u):$(id -g)"
     fi
 
-    # Mount global gitignore if it exists
-    if [[ -f "$HOME/.gitignore_global" ]]; then
-        run_args+=(-v "$HOME/.gitignore_global:/home/node/.gitignore_global:ro")
+    # Ensure required files and directories exist
+    if [[ ! -d "$HOME/.claude-code/.claude" ]]; then
+        mkdir -p "$HOME/.claude-code/.claude"
+        printf "\033[33m > Created %s/.claude-code/.claude\033[0m\n" "$HOME"
+    fi
+    if [[ ! -f "$HOME/.claude-code/.claude.json" ]]; then
+        echo "{}" > "$HOME/.claude-code/.claude.json"
+        printf "\033[33m > Created %s/.claude-code/.claude.json\033[0m\n" "$HOME"
+    fi
+    if [[ ! -f "$HOME/.claude-code/firewall-whitelist.txt" ]]; then
+        touch "$HOME/.claude-code/firewall-whitelist.txt"
+        printf "\033[33m > Created %s/.claude-code/firewall-whitelist.txt\033[0m\n" "$HOME"
+    fi
+    if [[ ! -f "$HOME/.gitignore_global" ]]; then
+        touch "$HOME/.gitignore_global"
+        printf "\033[33m > Created %s/.gitignore_global\033[0m\n" "$HOME"
     fi
 
-    # Add remaining volume mounts
-    run_args+=(
-        -v "$HOME/.claude-code/.claude:/home/node/.claude"
-        -v "$HOME/.claude-code/.claude.json:/home/node/.claude.json"
-        -v "$PWD:$PWD" -w "$PWD"
-    )
+    # Firewall: caps and env var
+    local cap_flags=()
+    local firewall_env=()
+    if [[ "$no_firewall" == false ]]; then
+        cap_flags=(--cap-add=NET_ADMIN --cap-add=NET_RAW)
+        printf "Setting up firewall for Claude Code...\n\n"
+    else
+        printf "\n\n\033[33m Disabling firewall for Claude Code, please be very careful and re-enable it as soon as possible.\033[0m\n\n"
+        firewall_env=(-e DISABLE_FIREWALL=true)
+    fi
 
-    # Run container
-    $runtime run "${run_args[@]}" \
-        "$image" /bin/bash -c "[ -f ~/.gitignore_global ] && git config --global core.excludesfile ~/.gitignore_global; sudo /usr/local/bin/init-firewall.sh && exec claude"
+    # Print container name for easy identification
+    echo -e "\n\033[1;36m>>> Container name: \033[1;33m$container_name \033[1;36m <<<\033[0m\n"
+
+    echo "Running Claude Code, the first startup might take few minutes..."
+
+    $runtime run --rm -it \
+        --name "$container_name" \
+        $cap_flags \
+        $firewall_env \
+        $user_flags \
+        -v "$HOME/.gitignore_global":/home/node/.gitignore_global:ro \
+        -v "$HOME/.claude-code/firewall-whitelist.txt":/home/node/.claude-code/firewall-whitelist.txt:ro \
+        -v "$HOME/.claude-code/.claude":/home/node/.claude \
+        -v "$HOME/.claude-code/.claude.json":/home/node/.claude.json \
+        -v "$PWD":"$PWD" -w "$PWD" \
+        "$image"
 }
 
 # Run llama.cpp server in a container
