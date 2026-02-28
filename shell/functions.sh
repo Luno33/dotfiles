@@ -88,10 +88,10 @@ claude() {
         $cap_flags \
         $firewall_env \
         $user_flags \
-        -v "$HOME/.gitignore_global":/home/node/.gitignore_global:ro \
-        -v "$HOME/.claude-code/firewall-whitelist.txt":/home/node/.claude-code/firewall-whitelist.txt:ro \
-        -v "$HOME/.claude-code/.claude":/home/node/.claude \
-        -v "$HOME/.claude-code/.claude.json":/home/node/.claude.json \
+        -v "$HOME/.gitignore_global":/home/claude/.gitignore_global:ro \
+        -v "$HOME/.claude-code/firewall-whitelist.txt":/home/claude/.claude-code/firewall-whitelist.txt:ro \
+        -v "$HOME/.claude-code/.claude":/home/claude/.claude \
+        -v "$HOME/.claude-code/.claude.json":/home/claude/.claude.json \
         -v "$PWD":"$PWD" -w "$PWD" \
         "$image"
 }
