@@ -1,7 +1,7 @@
 # Common functions (sourced by both bash and zsh)
 
 # Run Claude Code in a container
-# Usage: claude [--image IMAGE_NAME]
+# Usage: claude [--no-firewall] [--image IMAGE_NAME]
 # Override default image: export CLAUDE_IMAGE="ghcr.io/luno33/claude-code:latest"
 claude() {
     local no_firewall=false
@@ -22,11 +22,22 @@ claude() {
     # Remote:      ghcr.io/luno33/claude-code:latest
     local image="${CLAUDE_IMAGE:-claude-code:latest}"
 
-    # Parse --image flag
-    if [[ "$1" == "--image" && -n "$2" ]]; then
-        image="$2"
-        shift 2
-    fi
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-firewall)
+                no_firewall=true
+                shift
+                ;;
+            --image)
+                image="$2"
+                shift 2
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
 
     # Dynamic container name from current directory + TTY for uniqueness
     local dir_name=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]-')
