@@ -139,14 +139,14 @@ LLAMA_RUNTIME="podman"    # "docker" (for GPU) or "podman"
 #   ghcr.io/ggml-org/llama.cpp:server-vulkan (cross-platform GPU)
 #   ghcr.io/ggml-org/llama.cpp:server-intel  (Intel oneAPI)
 #   ghcr.io/ggml-org/llama.cpp:server-musa   (Moore Threads)
-# LLAMA_TEMPERATURE=0.6
-# LLAMA_TOP_P=0.95
-# LLAMA_TOP_K=20
-# LLAMA_MIN_P=0.00
-# LLAMA_PARALLEL=1
-# LLAMA_CACHE_TYPE_K=q8_0
-# LLAMA_CACHE_TYPE_V=q8_0
-# LLAMA_CACHE_RAM=4096
+# LLAMA_TEMPERATURE=0.6   # sampling temperature (0=greedy, higher=more random)
+# LLAMA_TOP_P=0.95        # nucleus sampling threshold
+# LLAMA_TOP_K=20          # top-k sampling (0=disabled)
+# LLAMA_MIN_P=0.00        # minimum probability cutoff relative to top token
+# LLAMA_PARALLEL=1        # number of parallel request slots
+# LLAMA_CACHE_TYPE_K=q8_0 # KV cache quantization for keys (f16, q8_0, q4_0)
+# LLAMA_CACHE_TYPE_V=q8_0 # KV cache quantization for values (f16, q8_0, q4_0)
+# LLAMA_CACHE_RAM=4096    # max RAM in MB for prompt cache
 EOF
         echo "Created: $configs_dir/example.conf.template"
         echo "Edit the template, rename to <name>.conf, then run: llama-server <name>"
