@@ -43,10 +43,19 @@ claude() {
     local dir_name=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]-')
     local tty_id=$(tty | grep -o '[0-9]*$')
     local container_name="claude-code-${dir_name}-pts${tty_id}"
+    local container_user="claude"
+    local container_home="/home/$container_user"
 
-    local user_flags=""
+    local user_flags=()
     if [[ "$runtime" == "podman" ]]; then
-        user_flags="--userns=keep-id --user $(id -u):$(id -g)"
+        CONTAINER_USER_ID=$(podman run --rm --entrypoint id claude-code:latest -u claude)
+        CONTAINER_GROUP_ID=$(podman run --rm --entrypoint id claude-code:latest -g claude)
+
+        user_flags=(
+            --userns="keep-id:uid=${CONTAINER_USER_ID},gid=${CONTAINER_GROUP_ID}"
+            --user "$container_user"
+            -e "HOME=$container_home"
+        )
     fi
 
     # Ensure required files and directories exist
@@ -85,13 +94,13 @@ claude() {
 
     $runtime run --rm -it \
         --name "$container_name" \
-        $cap_flags \
-        $firewall_env \
-        $user_flags \
-        -v "$HOME/.gitignore_global":/home/claude/.gitignore_global:ro \
-        -v "$HOME/.claude-code/firewall-whitelist.txt":/home/claude/.claude-code/firewall-whitelist.txt:ro \
-        -v "$HOME/.claude-code/.claude":/home/claude/.claude \
-        -v "$HOME/.claude-code/.claude.json":/home/claude/.claude.json \
+        "${cap_flags[@]}"  \
+        "${firewall_env[@]}" \
+        "${user_flags[@]}" \
+        -v "$HOME/.gitignore_global":$container_home/.gitignore_global:ro \
+        -v "$HOME/.claude-code/firewall-whitelist.txt":$container_home/.claude-code/firewall-whitelist.txt:ro \
+        -v "$HOME/.claude-code/.claude":$container_home/.claude \
+        -v "$HOME/.claude-code/.claude.json":$container_home/.claude.json \
         -v "$PWD":"$PWD" -w "$PWD" \
         "$image"
 }
@@ -203,7 +212,7 @@ EOF
     [[ -n "$LLAMA_CONTEXT" ]] && opt_args+=" --ctx-size $LLAMA_CONTEXT"
     [[ -n "$LLAMA_PREDICT" ]] && opt_args+=" --predict $LLAMA_PREDICT"
     [[ -n "$LLAMA_GPU_LAYERS" ]] && opt_args+=" --gpu-layers $LLAMA_GPU_LAYERS"
-
+    
     local port="${LLAMA_PORT:-8080}"
     local image="${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}"
 
