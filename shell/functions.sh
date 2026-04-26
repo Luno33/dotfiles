@@ -139,6 +139,14 @@ LLAMA_RUNTIME="podman"    # "docker" (for GPU) or "podman"
 #   ghcr.io/ggml-org/llama.cpp:server-vulkan (cross-platform GPU)
 #   ghcr.io/ggml-org/llama.cpp:server-intel  (Intel oneAPI)
 #   ghcr.io/ggml-org/llama.cpp:server-musa   (Moore Threads)
+# LLAMA_TEMPERATURE=0.6
+# LLAMA_TOP_P=0.95
+# LLAMA_TOP_K=20
+# LLAMA_MIN_P=0.00
+# LLAMA_PARALLEL=1
+# LLAMA_CACHE_TYPE_K=q8_0
+# LLAMA_CACHE_TYPE_V=q8_0
+# LLAMA_CACHE_RAM=4096
 EOF
         echo "Created: $configs_dir/example.conf.template"
         echo "Edit the template, rename to <name>.conf, then run: llama-server <name>"
@@ -212,6 +220,15 @@ EOF
     [[ -n "$LLAMA_CONTEXT" ]] && opt_args+=" --ctx-size $LLAMA_CONTEXT"
     [[ -n "$LLAMA_PREDICT" ]] && opt_args+=" --predict $LLAMA_PREDICT"
     [[ -n "$LLAMA_GPU_LAYERS" ]] && opt_args+=" --gpu-layers $LLAMA_GPU_LAYERS"
+    [[ -n "$LLAMA_TEMPERATURE" ]] && opt_args+=" --temp $LLAMA_TEMPERATURE"
+    [[ -n "$LLAMA_TOP_P" ]] && opt_args+=" --top-p $LLAMA_TOP_P"
+    [[ -n "$LLAMA_TOP_K" ]] && opt_args+=" --top-k $LLAMA_TOP_K"
+    [[ -n "$LLAMA_MIN_P" ]] && opt_args+=" --min-p $LLAMA_MIN_P"
+    [[ -n "$LLAMA_PARALLEL" ]] && opt_args+=" --parallel $LLAMA_PARALLEL"
+    [[ -n "$LLAMA_CACHE_TYPE_K" ]] && opt_args+=" --cache-type-k $LLAMA_CACHE_TYPE_K"
+    [[ -n "$LLAMA_CACHE_TYPE_V" ]] && opt_args+=" --cache-type-v $LLAMA_CACHE_TYPE_V"
+    [[ -n "$LLAMA_CACHE_RAM" ]] && opt_args+=" --cache-ram $LLAMA_CACHE_RAM"
+    [[ -n "$LLAMA_PRESENCE_PENALTY" ]] && opt_args+=" --cache-ram $LLAMA_PRESENCE_PENALTY"
     
     local port="${LLAMA_PORT:-8080}"
     local image="${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}"
