@@ -107,20 +107,29 @@ claude() {
 
 # Run llama.cpp server in a container
 # Usage: llama-server [config-name]
+#        llama-server add <name>
 # Configs stored in: ~/.llama-cpp-configs/configs/*.conf
 llama-server() {
     local config_dir="$HOME/.llama-cpp-configs"
     local configs_dir="$config_dir/configs"
     local cache_dir="$config_dir/cache"
 
-    # Bootstrap: create directory structure and template on first run
-    if [[ ! -d "$configs_dir" ]]; then
-        echo "First run: creating config directory structure..."
+    if [[ "$1" == "add" ]]; then
         mkdir -p "$configs_dir" "$cache_dir"
-        cat > "$configs_dir/example.conf.template" << 'EOF'
+        local new_name="$2"
+        if [[ -z "$new_name" ]]; then
+            echo "Usage: llama-server add <config-name>"
+            echo "Example: llama-server add qwen3-4b"
+            return 1
+        fi
+        local new_file="$configs_dir/$new_name.conf"
+        if [[ -f "$new_file" ]]; then
+            echo "Config '$new_name' already exists: $new_file"
+            return 1
+        fi
+        cat > "$new_file" << 'EOF'
 # Llama.cpp Server Configuration
-# Rename to <name>.conf (e.g., qwen3-4b.conf)
-# Run: llama-server <name>  (or just: llama-server for interactive selection)
+# Edit the MANDATORY fields below, then run: llama-server
 
 # === MANDATORY ===
 LLAMA_MODEL="/path/to/your/models/your-model.gguf"
@@ -148,8 +157,15 @@ LLAMA_RUNTIME="podman"    # "docker" (for GPU) or "podman"
 # LLAMA_CACHE_TYPE_V=q8_0 # KV cache quantization for values (f16, q8_0, q4_0)
 # LLAMA_CACHE_RAM=4096    # max RAM in MB for prompt cache
 EOF
-        echo "Created: $configs_dir/example.conf.template"
-        echo "Edit the template, rename to <name>.conf, then run: llama-server <name>"
+        echo "Created: $new_file"
+        echo "Edit the config, then run: llama-server"
+        return 0
+    fi
+
+    if [[ ! -d "$configs_dir" ]]; then
+        mkdir -p "$configs_dir" "$cache_dir"
+        echo "To create your first configuration, run: llama-server add <name>"
+        echo "Example: llama-server add qwen3-4b"
         return 0
     fi
 
@@ -161,7 +177,7 @@ EOF
 
     if [[ ${#configs[@]} -eq 0 ]]; then
         echo "No configs found in $configs_dir/"
-        echo "Create a .conf file based on example.conf.template"
+        echo "To add a new configuration, run: llama-server add <name>"
         return 1
     fi
 
@@ -171,10 +187,14 @@ EOF
         config_name="$1"
         if [[ ! -f "$configs_dir/$config_name.conf" ]]; then
             echo "Config '$config_name' not found. Available: ${configs[*]}"
+            echo "To add a new configuration, run: llama-server add <name>"
             return 1
         fi
     else
-        echo "Available configurations:"
+        printf "Commands:\n"
+        printf "  llama-server <name>      skip this menu\n"
+        printf "  llama-server add <name>  add new config\n\n"
+        printf "Available configurations:\n"
         select config_name in "${configs[@]}"; do
             [[ -n "$config_name" ]] && break
         done
