@@ -248,7 +248,7 @@ EOF
     [[ -n "$LLAMA_CACHE_TYPE_K" ]] && opt_args+=" --cache-type-k $LLAMA_CACHE_TYPE_K"
     [[ -n "$LLAMA_CACHE_TYPE_V" ]] && opt_args+=" --cache-type-v $LLAMA_CACHE_TYPE_V"
     [[ -n "$LLAMA_CACHE_RAM" ]] && opt_args+=" --cache-ram $LLAMA_CACHE_RAM"
-    [[ -n "$LLAMA_PRESENCE_PENALTY" ]] && opt_args+=" --cache-ram $LLAMA_PRESENCE_PENALTY"
+    [[ -n "$LLAMA_PRESENCE_PENALTY" ]] && opt_args+=" --presence-penalty $LLAMA_PRESENCE_PENALTY"
     
     local port="${LLAMA_PORT:-8080}"
     local image="${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}"
