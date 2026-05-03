@@ -17,4 +17,7 @@ alias cp="cp -i"
 alias gitlog='git log --all --graph --oneline --format="%C(yellow)%h %C(bold blue)%an %C(green)%ad %C(yellow)%d %C(reset)%s" --date=relative'
 alias gittag='git tag --sort=-creatordate --format="%(color:yellow)%(refname:short)%(color:reset) - %(color:green)%(creatordate:short)%(color:reset) - %(color:bold blue)%(taggername)%(color:reset) - %(contents:subject)"'
 
+# OpenCode
+alias opencode="$HOME/Projects/opencode-vm/opencode.sh"
+
 # Add your aliases below
