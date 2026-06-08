@@ -1,10 +1,11 @@
 # Common functions (sourced by both bash and zsh)
 
 # Run Claude Code in a container
-# Usage: claude [--no-firewall] [--image IMAGE_NAME]
+# Usage: claude [--no-firewall] [--image IMAGE_NAME] [-v|-volume HOST:CONTAINER[:OPTIONS] ...]
 # Override default image: export CLAUDE_IMAGE="ghcr.io/luno33/claude-code:latest"
 claude() {
     local no_firewall=false
+    local extra_vol_flags=()
 
     # Detect container runtime (prefer podman)
     local runtime
@@ -31,6 +32,10 @@ claude() {
                 ;;
             --image)
                 image="$2"
+                shift 2
+                ;;
+            -v|--volume)
+                extra_vol_flags+=(-v "$2")
                 shift 2
                 ;;
             *)
@@ -102,6 +107,7 @@ claude() {
         -v "$HOME/.claude-code/.claude":$container_home/.claude \
         -v "$HOME/.claude-code/.claude.json":$container_home/.claude.json \
         -v "$PWD":"$PWD" -w "$PWD" \
+        "${extra_vol_flags[@]}" \
         "$image"
 }
 
