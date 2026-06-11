@@ -154,6 +154,7 @@ LLAMA_RUNTIME="podman"    # "docker" (for GPU) or "podman"
 #   ghcr.io/ggml-org/llama.cpp:server-vulkan (cross-platform GPU)
 #   ghcr.io/ggml-org/llama.cpp:server-intel  (Intel oneAPI)
 #   ghcr.io/ggml-org/llama.cpp:server-musa   (Moore Threads)
+# LLAMA_FLASH_ATTN=on     # flash attention (on/off)
 # LLAMA_TEMPERATURE=0.6   # sampling temperature (0=greedy, higher=more random)
 # LLAMA_TOP_P=0.95        # nucleus sampling threshold
 # LLAMA_TOP_K=20          # top-k sampling (0=disabled)
@@ -162,6 +163,13 @@ LLAMA_RUNTIME="podman"    # "docker" (for GPU) or "podman"
 # LLAMA_CACHE_TYPE_K=q8_0 # KV cache quantization for keys (f16, q8_0, q4_0)
 # LLAMA_CACHE_TYPE_V=q8_0 # KV cache quantization for values (f16, q8_0, q4_0)
 # LLAMA_CACHE_RAM=4096    # max RAM in MB for prompt cache
+# LLAMA_VERBOSE=true      # show layer placement (GPU vs CPU) and detailed load info
+# === MTP / SPECULATIVE DECODING ===
+# For Unsloth MTP GGUFs the draft heads are embedded — no separate model needed.
+# LLAMA_SPEC_TYPE=draft-mtp  # draft-mtp for Unsloth/DeepSeek embedded heads
+# LLAMA_SPEC_DRAFT_N_MAX=2   # max tokens to speculatively draft per step (1-4)
+# LLAMA_SPEC_DRAFT_N_MIN=0   # min draft tokens before accepting
+# LLAMA_SPEC_DRAFT_P_MIN=0.0 # min probability threshold to keep drafting
 EOF
         echo "Created: $new_file"
         echo "Edit the config, then run: llama-server"
@@ -255,6 +263,13 @@ EOF
     [[ -n "$LLAMA_CACHE_TYPE_V" ]] && opt_args+=" --cache-type-v $LLAMA_CACHE_TYPE_V"
     [[ -n "$LLAMA_CACHE_RAM" ]] && opt_args+=" --cache-ram $LLAMA_CACHE_RAM"
     [[ -n "$LLAMA_PRESENCE_PENALTY" ]] && opt_args+=" --presence-penalty $LLAMA_PRESENCE_PENALTY"
+    [[ -n "$LLAMA_REPEAT_PENALTY" ]] && opt_args+=" --repeat-penalty $LLAMA_REPEAT_PENALTY"
+    [[ -n "$LLAMA_FLASH_ATTN" ]] && opt_args+=" -fa $LLAMA_FLASH_ATTN"
+    [[ -n "$LLAMA_SPEC_TYPE" ]] && opt_args+=" --spec-type $LLAMA_SPEC_TYPE"
+    [[ -n "$LLAMA_SPEC_DRAFT_N_MAX" ]] && opt_args+=" --spec-draft-n-max $LLAMA_SPEC_DRAFT_N_MAX"
+    [[ -n "$LLAMA_SPEC_DRAFT_N_MIN" ]] && opt_args+=" --spec-draft-n-min $LLAMA_SPEC_DRAFT_N_MIN"
+    [[ -n "$LLAMA_SPEC_DRAFT_P_MIN" ]] && opt_args+=" --spec-draft-p-min $LLAMA_SPEC_DRAFT_P_MIN"
+    [[ "${LLAMA_VERBOSE:-false}" == "true" ]] && opt_args+=" --verbose"
     
     local port="${LLAMA_PORT:-8080}"
     local image="${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}"
