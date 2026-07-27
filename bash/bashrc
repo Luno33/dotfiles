@@ -6,11 +6,11 @@ case $- in
       *) return;;
 esac
 
-# History settings
+# History: in-memory only, never written to disk
+unset HISTFILE
+HISTFILESIZE=0
 HISTCONTROL=ignoreboth
-HISTSIZE=1000
-HISTFILESIZE=2000
-shopt -s histappend
+HISTSIZE=10000
 
 # Check window size after each command
 shopt -s checkwinsize

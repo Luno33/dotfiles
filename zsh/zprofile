@@ -1,4 +1,7 @@
 # Zsh login shell config
 
+# Disable Terminal.app session replay (~/.zsh_sessions), must be set before /etc/zshrc runs
+export SHELL_SESSIONS_DISABLE=1
+
 # Source zshrc
 [ -f ~/.zshrc ] && source ~/.zshrc
