@@ -1,11 +1,72 @@
 # Common functions (sourced by both bash and zsh)
 
-# Run Claude Code in a container
-# Usage: claude [--no-firewall] [--image IMAGE_NAME] [-v|-volume HOST:CONTAINER[:OPTIONS] ...]
-# Override default image: export CLAUDE_IMAGE="ghcr.io/luno33/claude-code:latest"
-claude() {
+# Fail if flag $2 of command $1 has no value ($3 missing or another flag)
+_agent_need_value() {
+    [[ -n "$3" && "$3" != -* ]] && return 0
+    echo "Error: $2 requires a value, see $1 --help" >&2
+    return 1
+}
+
+# Run Claude Code or opencode in a container
+# Usage: claude|opencode [--preview] [--no-firewall] [--image IMAGE_NAME] [-v|--volume HOST:CONTAINER[:OPTIONS] ...] [-h|--help]
+# --preview: run the :preview image (make preview) instead of :latest
+_agent_run() {
+    local cmd="$1" name="$2" state_dir="$3"
+    shift 3
     local no_firewall=false
     local extra_vol_flags=()
+
+    # Image to use (--preview or --image flag)
+    # Local build: claude-code:latest
+    # Remote:      ghcr.io/luno33/claude-code:latest
+    local image="" tag="latest"
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-firewall)
+                no_firewall=true
+                shift
+                ;;
+            --preview)
+                tag="preview"
+                shift
+                ;;
+            --image)
+                _agent_need_value "$cmd" "$@" || return 1
+                image="$2"
+                shift 2
+                ;;
+            -v|--volume)
+                _agent_need_value "$cmd" "$@" || return 1
+                extra_vol_flags+=(-v "$2")
+                shift 2
+                ;;
+            -h|--help)
+                cat << EOF
+Usage: $cmd [OPTIONS]
+
+Run $cmd in a container, with the current directory mounted.
+
+Options:
+  --preview                      Use the :preview image (make preview) instead of :latest
+  --image IMAGE                  Use a custom image (overrides --preview)
+  --no-firewall                  Disable the outbound firewall (use with care)
+  -v, --volume HOST:CONT[:OPTS]  Extra mount, repeatable
+  -h, --help                     Show this help
+
+State:     $state_dir
+Whitelist: $state_dir/firewall/whitelist.txt
+EOF
+                return 0
+                ;;
+            *)
+                echo "Error: unknown option '$1', see $cmd --help" >&2
+                return 1
+                ;;
+        esac
+    done
+    image="${image:-$name:$tag}"
 
     # Detect container runtime (prefer podman)
     local runtime
@@ -18,63 +79,30 @@ claude() {
         return 1
     fi
 
-    # Image to use (override with CLAUDE_IMAGE env var or --image flag)
-    # Local build: claude-code:latest
-    # Remote:      ghcr.io/luno33/claude-code:latest
-    local image="${CLAUDE_IMAGE:-claude-code:latest}"
-
-    # Parse flags
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --no-firewall)
-                no_firewall=true
-                shift
-                ;;
-            --image)
-                image="$2"
-                shift 2
-                ;;
-            -v|--volume)
-                extra_vol_flags+=(-v "$2")
-                shift 2
-                ;;
-            *)
-                break
-                ;;
-        esac
-    done
-
     # Dynamic container name from current directory + TTY for uniqueness
     local dir_name=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]-')
     local tty_id=$(tty | grep -o '[0-9]*$')
-    local container_name="claude-code-${dir_name}-pts${tty_id}"
-    local container_user="claude"
+    local container_name="${cmd}-${tag}-${dir_name}-pts${tty_id}"
+    local container_user="agent"
     local container_home="/home/$container_user"
 
     local user_flags=()
     if [[ "$runtime" == "podman" ]]; then
-        CONTAINER_USER_ID=$(podman run --rm --entrypoint id claude-code:latest -u claude)
-        CONTAINER_GROUP_ID=$(podman run --rm --entrypoint id claude-code:latest -g claude)
+        CONTAINER_USER_ID=$(podman run --rm --entrypoint id "$image" -u "$container_user")
+        CONTAINER_GROUP_ID=$(podman run --rm --entrypoint id "$image" -g "$container_user")
 
         user_flags=(
             --userns="keep-id:uid=${CONTAINER_USER_ID},gid=${CONTAINER_GROUP_ID}"
-            --user "$container_user"
+            --user root
             -e "HOME=$container_home"
         )
     fi
 
     # Ensure required files and directories exist
-    if [[ ! -d "$HOME/.claude-code/.claude" ]]; then
-        mkdir -p "$HOME/.claude-code/.claude"
-        printf "\033[33m > Created %s/.claude-code/.claude\033[0m\n" "$HOME"
-    fi
-    if [[ ! -f "$HOME/.claude-code/.claude.json" ]]; then
-        echo "{}" > "$HOME/.claude-code/.claude.json"
-        printf "\033[33m > Created %s/.claude-code/.claude.json\033[0m\n" "$HOME"
-    fi
-    if [[ ! -f "$HOME/.claude-code/firewall-whitelist.txt" ]]; then
-        touch "$HOME/.claude-code/firewall-whitelist.txt"
-        printf "\033[33m > Created %s/.claude-code/firewall-whitelist.txt\033[0m\n" "$HOME"
+    mkdir -p "$state_dir/firewall-logs"
+    if [[ ! -f "$state_dir/firewall/whitelist.txt" ]]; then
+        mkdir -p "$state_dir/firewall" && touch "$state_dir/firewall/whitelist.txt"
+        printf "\033[33m > Created %s/firewall/whitelist.txt\033[0m\n" "$state_dir"
     fi
     if [[ ! -f "$HOME/.gitignore_global" ]]; then
         touch "$HOME/.gitignore_global"
@@ -86,16 +114,16 @@ claude() {
     local firewall_env=()
     if [[ "$no_firewall" == false ]]; then
         cap_flags=(--cap-add=NET_ADMIN --cap-add=NET_RAW)
-        printf "Setting up firewall for Claude Code...\n\n"
+        printf "Setting up firewall for $cmd...\n\n"
     else
-        printf "\n\n\033[33m Disabling firewall for Claude Code, please be very careful and re-enable it as soon as possible.\033[0m\n\n"
+        printf "\n\n\033[33m Disabling firewall for $cmd, please be very careful and re-enable it as soon as possible.\033[0m\n\n"
         firewall_env=(-e DISABLE_FIREWALL=true)
     fi
 
     # Print container name for easy identification
     echo -e "\n\033[1;36m>>> Container name: \033[1;33m$container_name \033[1;36m <<<\033[0m\n"
 
-    echo "Running Claude Code, the first startup might take few minutes..."
+    echo "Running $cmd, the first startup might take few minutes..."
 
     $runtime run --rm -it \
         --name "$container_name" \
@@ -103,12 +131,26 @@ claude() {
         "${firewall_env[@]}" \
         "${user_flags[@]}" \
         -v "$HOME/.gitignore_global":$container_home/.gitignore_global:ro \
-        -v "$HOME/.claude-code/firewall-whitelist.txt":$container_home/.claude-code/firewall-whitelist.txt:ro \
-        -v "$HOME/.claude-code/.claude":$container_home/.claude \
-        -v "$HOME/.claude-code/.claude.json":$container_home/.claude.json \
+        -v "$state_dir/firewall":/etc/firewall/custom:ro \
+        -v "$state_dir/firewall-logs":/var/log/firewall \
         -v "$PWD":"$PWD" -w "$PWD" \
         "${extra_vol_flags[@]}" \
         "$image"
+}
+
+claude() {
+    mkdir -p "$HOME/.claude-code/.claude"
+    [[ -f "$HOME/.claude-code/.claude.json" ]] || echo "{}" > "$HOME/.claude-code/.claude.json"
+    _agent_run claude claude-code "$HOME/.claude-code" \
+        -v "$HOME/.claude-code/.claude":/home/agent/.claude \
+        -v "$HOME/.claude-code/.claude.json":/home/agent/.claude.json "$@"
+}
+
+opencode() {
+    mkdir -p "$HOME/.opencode/config" "$HOME/.opencode/data"
+    _agent_run opencode opencode "$HOME/.opencode" \
+        -v "$HOME/.opencode/config":/home/agent/.config/opencode \
+        -v "$HOME/.opencode/data":/home/agent/.local/share/opencode "$@"
 }
 
 # Run llama.cpp server in a container
